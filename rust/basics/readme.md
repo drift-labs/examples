@@ -1,5 +1,0 @@
-Basic single purpose script guides for rust
-
-
-SOL-PERP DLOB Fetcher
-Queries the Drift DLOB server for the SOL-PERP L2 orderbook
