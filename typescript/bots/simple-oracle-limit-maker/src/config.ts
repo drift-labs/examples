@@ -9,6 +9,7 @@ export const MM_CONFIG = {
 
 	// Wallet
 	PRIVATE_KEY: Bun.env.PRIVATE_KEY || '',
+	KEYPAIR_PATH: Bun.env.KEYPAIR_PATH || '',
 
 	// Market
 	TARGET_MARKET: 'BTC', // Market to make on

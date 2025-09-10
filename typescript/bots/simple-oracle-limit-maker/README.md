@@ -31,7 +31,9 @@ export const MM_CONFIG = {
 Create `.env` file:
 
 ```bash
+# Use either private key or keypair file path
 PRIVATE_KEY=your_drift_wallet_private_key
+KEYPAIR_PATH=~/.config/solana/my-keypair.json
 RPC_ENDPOINT="https://mainnet.helius-rpc.com/?api-key=..."
 ```
 

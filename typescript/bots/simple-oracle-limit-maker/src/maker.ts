@@ -17,6 +17,7 @@ import {
 	PostOnlyParams,
 	QUOTE_PRECISION,
 	BN,
+	loadKeypair,
 } from '@drift-labs/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { makeLogger } from './utils';
@@ -128,18 +129,25 @@ export class ExampleMaker {
 				commitment: 'confirmed',
 			});
 
-			if (!MM_CONFIG.PRIVATE_KEY) {
-				throw new Error('PRIVATE_KEY environment variable not set');
+			let wallet: Wallet;
+
+			if (MM_CONFIG.KEYPAIR_PATH) {
+				// Use keypair file if path is provided
+				wallet = new Wallet(loadKeypair(MM_CONFIG.KEYPAIR_PATH));
+			} else if (MM_CONFIG.PRIVATE_KEY) {
+				// Fall back to private key string
+				const parseKey = (key: string): Uint8Array =>
+					key.startsWith('[')
+						? new Uint8Array(JSON.parse(key))
+						: Buffer.from(key, 'base64');
+
+				const secretKey = parseKey(MM_CONFIG.PRIVATE_KEY);
+				wallet = new Wallet(Keypair.fromSecretKey(secretKey));
+			} else {
+				throw new Error(
+					'Either KEYPAIR_PATH or PRIVATE_KEY environment variable must be set'
+				);
 			}
-
-			// Parse private key from environment
-			const parseKey = (key: string): Uint8Array =>
-				key.startsWith('[')
-					? new Uint8Array(JSON.parse(key))
-					: Buffer.from(key, 'base64');
-
-			const secretKey = parseKey(MM_CONFIG.PRIVATE_KEY);
-			const wallet = new Wallet(Keypair.fromSecretKey(secretKey));
 
 			// Initialize Drift client
 			this.driftClient = new DriftClient({
