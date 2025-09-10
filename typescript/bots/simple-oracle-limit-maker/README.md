@@ -32,6 +32,7 @@ Create `.env` file:
 
 ```bash
 PRIVATE_KEY=your_drift_wallet_private_key
+RPC_ENDPOINT="https://mainnet.helius-rpc.com/?api-key=..."
 ```
 
 ```bash
