@@ -16,13 +16,13 @@ Edit `config.ts` to customize:
 
 ```typescript
 export const MM_CONFIG = {
-  TARGET_MARKET: "BTC", // Market to trade
-  ORDER_SIZE: 0.001, // BTC per order
-  MAX_POSITION: 0.01, // Position limit
-  BASE_SPREAD_BPS: 2, // Base spread (2 bps)
-  MAX_SKEW_BPS: 10, // Max position skew
-  DEBOUNCE_MS: 500, // Oracle update throttle
-  ORACLE_CHANGE_THRESHOLD_BPS: 5, // Min change to update
+	TARGET_MARKET: 'BTC', // Market to trade
+	ORDER_SIZE: 0.001, // BTC per order
+	MAX_POSITION: 0.01, // Position limit
+	BASE_SPREAD_BPS: 2, // Base spread (2 bps)
+	MAX_SKEW_BPS: 10, // Max position skew
+	DEBOUNCE_MS: 500, // Oracle update throttle
+	ORACLE_CHANGE_THRESHOLD_BPS: 5, // Min change to update
 };
 ```
 
