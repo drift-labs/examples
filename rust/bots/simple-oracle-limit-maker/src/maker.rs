@@ -1,7 +1,10 @@
 use anyhow::Result;
 use drift_rs::{
     DriftClient, Pubkey, RpcClient, Wallet,
-    types::{Context, MarketId, MarketType, NewOrder, PerpPosition, PostOnlyParam},
+    types::{
+        Context, MarketId, MarketType, OrderParams, OrderType, PerpPosition, PositionDirection,
+        PostOnlyParam,
+    },
 };
 use log::{debug, error, info};
 use std::{
@@ -290,24 +293,40 @@ impl OracleLimitMakerBot {
             info!("Cancelled existing orders");
         }
 
-        // Calculate prices
+        // Calculate oracle price offsets
         let oracle_price_f64 = self.oracle_price as f64;
-        let bid_price = (oracle_price_f64 * (1.0 - quotes.bid_offset_bps / 10000.0)) as u64;
-        let ask_price = (oracle_price_f64 * (1.0 + quotes.ask_offset_bps / 10000.0)) as u64;
+        let bid_price_offset = -(oracle_price_f64 * quotes.bid_offset_bps / 10000.0) as i32;
+        let ask_price_offset = (oracle_price_f64 * quotes.ask_offset_bps / 10000.0) as i32;
 
-        // Create bid order (buy)
-        let bid_order = NewOrder::limit(self.market_id)
-            .amount((quotes.size * BASE_PRECISION) as i64) // positive for long
-            .price(bid_price)
-            .post_only(PostOnlyParam::TryPostOnly)
-            .build();
+        // For logging, calculate display prices
+        let bid_display_price = oracle_price_f64 + (bid_price_offset as f64);
+        let ask_display_price = oracle_price_f64 + (ask_price_offset as f64);
 
-        // Create ask order (sell)
-        let ask_order = NewOrder::limit(self.market_id)
-            .amount(-((quotes.size * BASE_PRECISION) as i64)) // negative for short
-            .price(ask_price)
-            .post_only(PostOnlyParam::TryPostOnly)
-            .build();
+        // Create bid order (buy) with oracle offset
+        let bid_order = OrderParams {
+            order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Long,
+            base_asset_amount: (quotes.size * BASE_PRECISION) as u64,
+            market_index: self.market_id.index(),
+            price: 0,                                    // Set to 0 when using oracle offset
+            oracle_price_offset: Some(bid_price_offset), // Negative for bid
+            post_only: PostOnlyParam::TryPostOnly,
+            ..Default::default()
+        };
+
+        // Create ask order (sell) with oracle offset
+        let ask_order = OrderParams {
+            order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Short,
+            base_asset_amount: (quotes.size * BASE_PRECISION) as u64,
+            market_index: self.market_id.index(),
+            price: 0,                                    // Set to 0 when using oracle offset
+            oracle_price_offset: Some(ask_price_offset), // Positive for ask
+            post_only: PostOnlyParam::TryPostOnly,
+            ..Default::default()
+        };
 
         // Place both orders
         let place_tx = self
@@ -322,9 +341,9 @@ impl OracleLimitMakerBot {
 
         info!(
             "Updated quotes - Bid: ${:.2} (-{:.1} bps), Ask: ${:.2} (+{:.1} bps), Size: {:.6}, Sig: {}",
-            bid_price as f64 / QUOTE_PRECISION,
+            bid_display_price / QUOTE_PRECISION,
             quotes.bid_offset_bps,
-            ask_price as f64 / QUOTE_PRECISION,
+            ask_display_price / QUOTE_PRECISION,
             quotes.ask_offset_bps,
             quotes.size,
             signature
