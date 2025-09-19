@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
 
         // Timing configuration
         debounce_ms: 500,               // 500ms minimum between oracle updates
-        oracle_change_threshold_bps: 5, // 5 bps minimum price change to trigger update
+        oracle_change_threshold_bps: 2, // 5 bps minimum price change to trigger update
 
         // Account configuration
         authority: None,  // Set to Some("pubkey") for delegation

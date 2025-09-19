@@ -390,6 +390,43 @@ impl OracleLimitMakerBot {
             }
         }
 
+        // Close any open positions
+        if let Ok(current_position) = self.get_current_position().await {
+            if let Some(pos) = current_position {
+                if pos.base_asset_amount != 0 {
+                    info!("Closing open position before shutdown");
+                    let close_direction = if pos.base_asset_amount > 0 {
+                        PositionDirection::Short
+                    } else {
+                        PositionDirection::Long
+                    };
+
+                    let close_order = OrderParams {
+                        order_type: OrderType::Market,
+                        market_type: MarketType::Perp,
+                        direction: close_direction,
+                        base_asset_amount: pos.base_asset_amount.unsigned_abs(),
+                        market_index: self.market_id.index(),
+                        reduce_only: true,
+                        ..Default::default()
+                    };
+
+                    if let Ok(close_tx) = self
+                        .client
+                        .init_tx(&self.get_subaccount(), self.is_delegated())
+                        .await
+                        .map(|tx| tx.place_orders(vec![close_order]).build())
+                    {
+                        if let Err(e) = self.client.sign_and_send(close_tx).await {
+                            error!("Failed to close position during shutdown: {}", e);
+                        } else {
+                            info!("Successfully closed position");
+                        }
+                    }
+                }
+            }
+        }
+
         // Unsubscribe from oracle feed
         if let Err(e) = self.client.unsubscribe().await {
             error!("Failed to unsubscribe: {}", e);
