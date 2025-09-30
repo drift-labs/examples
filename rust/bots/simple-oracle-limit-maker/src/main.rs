@@ -22,6 +22,7 @@ mod maker;
 
 use anyhow::Result;
 use dotenv::dotenv;
+use env_logger::Builder;
 use log::info;
 use maker::{BotConfig, OracleLimitMakerBot};
 
@@ -31,7 +32,8 @@ async fn main() -> Result<()> {
     dotenv().ok();
 
     // Initialize logger
-    env_logger::init();
+    let mut builder = Builder::from_default_env();
+    builder.format_timestamp_millis().init();
 
     info!("Starting Oracle Limit Market Maker Bot");
 

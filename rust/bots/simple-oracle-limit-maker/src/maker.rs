@@ -1,10 +1,10 @@
 use anyhow::Result;
 use drift_rs::{
-    DriftClient, Pubkey, RpcClient, Wallet,
     types::{
         Context, MarketId, MarketType, OrderParams, OrderType, PerpPosition, PositionDirection,
         PostOnlyParam,
     },
+    DriftClient, Pubkey, RpcClient, Wallet,
 };
 use log::{debug, error, info};
 use std::{
@@ -278,21 +278,6 @@ impl OracleLimitMakerBot {
     async fn update_orders(&mut self, quotes: QuoteParams) -> Result<()> {
         let subaccount = self.get_subaccount();
 
-        // Cancel existing orders if any
-        if self.has_active_orders {
-            debug!("Cancelling existing orders");
-            let cancel_tx = self
-                .client
-                .init_tx(&subaccount, self.is_delegated())
-                .await?
-                .cancel_orders((self.market_id.index(), MarketType::Perp), None)
-                .build();
-
-            self.client.sign_and_send(cancel_tx).await?;
-            self.has_active_orders = false;
-            info!("Cancelled existing orders");
-        }
-
         // Calculate oracle price offsets
         let oracle_price_f64 = self.oracle_price as f64;
         let bid_price_offset = -(oracle_price_f64 * quotes.bid_offset_bps / 10000.0) as i32;
@@ -328,15 +313,16 @@ impl OracleLimitMakerBot {
             ..Default::default()
         };
 
-        // Place both orders
-        let place_tx = self
+        // Single atomic transaction: cancel + place both orders
+        let cancel_and_place_tx = self
             .client
             .init_tx(&subaccount, self.is_delegated())
             .await?
+            .cancel_orders((self.market_id.index(), MarketType::Perp), None)
             .place_orders(vec![bid_order, ask_order])
             .build();
 
-        let signature = self.client.sign_and_send(place_tx).await?;
+        let signature = self.client.sign_and_send(cancel_and_place_tx).await?;
         self.has_active_orders = true;
 
         info!(
