@@ -4,9 +4,10 @@ use drift_rs::{
         Context, MarketId, MarketType, OrderParams, OrderType, PerpPosition, PositionDirection,
         PostOnlyParam,
     },
-    DriftClient, Pubkey, RpcClient, Wallet,
+    DriftClient, GrpcSubscribeOpts, Pubkey, RpcClient, Wallet,
 };
 use log::{debug, error, info};
+use solana_sdk::commitment_config::CommitmentLevel;
 use std::{
     env,
     str::FromStr,
@@ -68,11 +69,12 @@ impl OracleLimitMakerBot {
         info!("Found market: {} -> {:?}", config.target_market, market_id);
 
         // Subscribe to oracle feed
-        client.subscribe_oracles(&[market_id]).await?;
-        info!(
-            "Subscribed to oracle feed for market: {}",
-            config.target_market
-        );
+        // Comment out if using gRPC
+        // client.subscribe_oracles(&[market_id]).await?;
+        // info!(
+        //     "Subscribed to oracle feed for market: {}",
+        //     config.target_market
+        // );
 
         // Get initial oracle price
         let initial_oracle_price = client.oracle_price(market_id).await.unwrap_or(0);
@@ -110,6 +112,19 @@ impl OracleLimitMakerBot {
         let client = DriftClient::new(context, rpc_client, wallet)
             .await
             .expect("Failed to initialize client");
+
+        // gRPC version
+        let grpc_url = env::var("GRPC_URL").expect("GRPC_URL not set");
+        let grpc_token = env::var("GRPC_X_TOKEN").expect("GRPC_X_TOKEN not set");
+
+        client
+            .grpc_subscribe(
+                grpc_url,
+                grpc_token,
+                GrpcSubscribeOpts::default().commitment(CommitmentLevel::Processed),
+                true,
+            )
+            .await?;
 
         info!(
             "Connected to Drift with wallet: {}",
