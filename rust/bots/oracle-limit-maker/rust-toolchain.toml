@@ -1,0 +1,5 @@
+[toolchain]
+# Mac M-series: use x86_64-apple-darwin
+# Linux: use x86_64-unknown-linux-gnu
+channel = "1.90.0-x86_64-apple-darwin"
+profile = "default"

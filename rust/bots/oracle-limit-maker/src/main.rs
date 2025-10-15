@@ -1,22 +1,25 @@
 //! # Oracle Limit Market Maker Bot (Example)
 //!
-//! **⚠️ FOR EDUCATIONAL PURPOSES ONLY - NOT FOR PRODUCTION USE ⚠️**
+//! **⚠️ FOR EDUCATIONAL PURPOSES ONLY, NOT FOR PRODUCTION USE ⚠️**
 //!
-//! Example bot demonstrating Drift Protocol's Rust SDK with oracle-based market making.
+//! Example bot demonstrating Drift Protocol's Rust SDK with oracle limit market making.
 //!
 //! ## Strategy
-//! - Places limit orders with oracle-relative prices
-//! - Uses inventory skewing to manage position risk
-//! - Long position: widen bids, tighten asks
-//! - Short position: tighten bids, widen asks
+//! - Places oracle limit order based on L2 best bid/ask from DLOB
+//! - Uses inventory skewing to manage position risk:
+//!   - Long position: widen bids, tighten asks (encourage selling)
+//!   - Short position: tighten bids, widen asks (encourage buying)
+//! - Dynamic order sizing: reduces size on position side as inventory grows
 //!
 //! ## Configuration
 //! Set environment variables:
 //! - RPC_ENDPOINT: Solana RPC endpoint
 //! - PRIVATE_KEY: Base58 encoded private key
+//! - GRPC_URL: GRPC endpoint for orderbook streaming
+//! - GRPC_X_TOKEN: Authentication token for GRPC
 //!
 //! ## Usage
-//! Press Ctrl+C for graceful shutdown.
+//! Press Ctrl+C for graceful shutdown (cancels orders and closes position).
 
 mod maker;
 
@@ -38,24 +41,19 @@ async fn main() -> Result<()> {
     info!("Starting Oracle Limit Market Maker Bot");
 
     let config = BotConfig {
-        // Market configuration
-        target_market: "BTC-PERP".to_string(), // Market symbol
+        // Market and sizing
+        target_market: "BTC-PERP".to_string(),
+        order_size: 0.001,
+        max_position_size: 0.01,
+        spread_multiplier: 1.5,
 
-        // Order sizing
-        order_size: 0.001,  // 0.001 BTC per side
-        max_position: 0.01, // Max 0.01 BTC position before skewing
+        // Update thresholds
+        debounce_ms: 1000,
+        oracle_change_threshold_bps: 0.5,
 
-        // Spread configuration
-        base_spread_bps: 2, // 2 bps base spread (0.02%)
-        max_skew_bps: 10,   // Max 10 bps additional skew when positioned
-
-        // Timing configuration
-        debounce_ms: 500,               // 500ms minimum between oracle updates
-        oracle_change_threshold_bps: 2, // 5 bps minimum price change to trigger update
-
-        // Account configuration
-        authority: None,  // Set to Some("pubkey") for delegation
-        subaccount_id: 0, // Default subaccount
+        // Account
+        authority: None,
+        subaccount_id: 0,
     };
 
     // Initialize bot
@@ -71,7 +69,9 @@ async fn main() -> Result<()> {
         }
         _ = tokio::signal::ctrl_c() => {
             info!("Received Ctrl+C signal, initiating graceful shutdown...");
-            bot.stop().await;
+            if let Err(e) = bot.stop().await {
+                log::error!("Error during shutdown: {}", e);
+            }
             info!("Shutdown completed successfully");
         }
     }
